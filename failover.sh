@@ -9,28 +9,35 @@ FAILOVER_CHECK_INTERVAL=300 # check failover connection every 5 minutes
 FAILOVER_FAILURE_THRESHOLD=3 # number of consecutive failures before logging a message
 failedbounce=0
 
+primary_connected=false
+failover_connected=false
+
 #debugging outputs
 # Get the default gateway for the primary interface
-if ifplugstatus $PRIMARY_IFACE >/dev/null; then
+if ip link show $PRIMARY_IFACE | grep -q "state UP"; then
     PRIMARY_GATEWAY=$(ip route get $PING_ADDRESS | awk 'NR==1{print $(NF-2)}')
-    echo "Primary interface: $PRIMARY_IFACE"
-    echo "Primary gateway: $PRIMARY_GATEWAY"
+    primary_connected=true
+    echo "INIT: Primary interface: $PRIMARY_IFACE"
+    echo "INIT: Primary gateway: $PRIMARY_GATEWAY"
 else
-    echo "Primary interface $PRIMARY_IFACE is not connected!"
+    primary_connected=false
+    echo "INIT: Primary interface $PRIMARY_IFACE is not connected!"
 fi
 
 # Get the default gateway for the failover interface
-if ifplugstatus $FAILOVER_IFACE >/dev/null; then
+if ip link show $FAILOVER_IFACE | grep -q "state UP"; then
     FAILOVER_GATEWAY=$(ip route get $PING_ADDRESS | awk 'NR==2{print $(NF-2)}')
-    echo "Failover interface: $FAILOVER_IFACE"
-    echo "Failover gateway: $FAILOVER_GATEWAY"
+    failover_connected=true
+    echo "INIT: Failover interface: $FAILOVER_IFACE"
+    echo "INIT: Failover gateway: $FAILOVER_GATEWAY"
 else
-    echo "Failover interface $FAILOVER_IFACE is not connected!"
+    failover_connected=false
+    echo "INIT: Failover interface $FAILOVER_IFACE is not connected!"
 fi
 
 while true; do
      # Check link status of primary interface
-    if ifplugstatus $PRIMARY_IFACE | grep -q "link beat detected"; then
+    if $primary_connected then
         echo "Link is up on $PRIMARY_IFACE"
     else
         echo "Link is down on $PRIMARY_IFACE"
@@ -39,7 +46,7 @@ while true; do
     fi
 
     # Check link status of failover interface
-    if ifplugstatus $FAILOVER_IFACE | grep -q "link beat detected"; then
+    if $failover_connected then
         echo "Link is up on $FAILOVER_IFACE"
     else
         echo "Link is down on $FAILOVER_IFACE"
@@ -49,7 +56,7 @@ while true; do
 
     # Check primary interface for internet connectivity
     echo "Checking internet connectivity on primary interface: $PRIMARY_IFACE"
-    if ifplugstatus $PRIMARY_IFACE >/dev/null && ping -c 1 -I $PRIMARY_IFACE $PING_ADDRESS >/dev/null 2>&1; then
+    if $primary_connected && ping -c 1 -I $PRIMARY_IFACE $PING_ADDRESS >/dev/null 2>&1; then
         # Internet connection is up on primary interface, set the default route to the primary interface
         ip route replace default via $PRIMARY_GATEWAY dev $PRIMARY_IFACE
         logger -t internet-monitor "Switched to Primary: Internet connection is up on $PRIMARY_IFACE"
@@ -60,7 +67,7 @@ while true; do
     fi
 
     # Check failover interface for internet connectivity
-    if ifplugstatus $FAILOVER_IFACE >/dev/null && ping -c 1 -I $FAILOVER_IFACE $PING_ADDRESS >/dev/null 2>&1; then
+    if $failover_connected && ping -c 1 -I $FAILOVER_IFACE $PING_ADDRESS >/dev/null 2>&1; then
         # Internet connection is up on failover interface, set the default route to the failover interface
         ip route replace default via $FAILOVER_GATEWAY dev $FAILOVER_IFACE
         logger -t internet-monitor "Switched to Failover: Internet connection is up on $FAILOVER_IFACE"
