@@ -23,8 +23,8 @@ while true; do
     if ping -c 1 -I $PRIMARY_IFACE $PING_ADDRESS >/dev/null 2>&1; then
         # Internet connection is up on primary interface, set the default route to the primary interface
         ip route replace default via $gateway dev $PRIMARY_IFACE
-        logger -t internet-monitor "Switched to $PRIMARY_IFACE: Internet connection is up on $PRIMARY_IFACE"
-        echo "Switched to $PRIMARY_IFACE: Internet connection is up on $PRIMARY_IFACE"
+        logger -t internet-monitor "Switched to Primary: Internet connection is up on $PRIMARY_IFACE"
+        echo "Switched to Primary: Internet connection is up on $PRIMARY_IFACE"
         failedbounce=0
         sleep 60
         continue
@@ -34,18 +34,18 @@ while true; do
     if ping -c 1 -I $FAILOVER_IFACE $PING_ADDRESS >/dev/null 2>&1; then
         # Internet connection is up on failover interface, set the default route to the failover interface
         ip route replace default via $gateway dev $FAILOVER_IFACE
-        logger -t internet-monitor "Switched to $FAILOVER_IFACE: Internet connection is up on $FAILOVER_IFACE"
-        echo "Switched to $FAILOVER_IFACE: Internet connection is up on $FAILOVER_IFACE"
+        logger -t internet-monitor "Switched to Failover: Internet connection is up on $FAILOVER_IFACE"
+        echo "Switched to Failover: Internet connection is up on $FAILOVER_IFACE"
         failedbounce=0
         sleep 60
         continue
     fi
 
     # Both interfaces are down
-    logger -t internet-monitor "Both $PRIMARY_IFACE and $FAILOVER_IFACE are down"
-    echo "Both $PRIMARY_IFACE and $FAILOVER_IFACE are down"
+    logger -t internet-monitor "ERROR: Both $PRIMARY_IFACE and $FAILOVER_IFACE are down!!"
+    echo "ERROR: Both $PRIMARY_IFACE (primary) and $FAILOVER_IFACE (failover) are down!!"
     failedbounce=0
-    sleep 60
+    sleep 30
 
     # Check failover interface for internet connectivity at regular intervals
     if [ $(( $SECONDS % $FAILOVER_CHECK_INTERVAL )) -eq 0 ]; then
