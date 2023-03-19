@@ -1,4 +1,6 @@
 #!/bin/bash
+#   A script by Taurolyon
+#   https://github.com/Taurolyon/failover
 
 PRIMARY_IFACE=enp2s0
 FAILOVER_IFACE=enp3s0
