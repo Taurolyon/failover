@@ -74,7 +74,7 @@ while true; do
     logger -t internet-monitor "ERROR: Both $PRIMARY_IFACE and $FAILOVER_IFACE are down!!"
     echo "ERROR: Both $PRIMARY_IFACE and $FAILOVER_IFACE are down!!"
     failedbounce=0
-    sleep 30
+    sleep 10
 
     # Check failover interface for internet connectivity at regular intervals
     if [ $(( $SECONDS % $FAILOVER_CHECK_INTERVAL )) -eq 0 ]; then
