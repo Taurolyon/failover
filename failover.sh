@@ -4,7 +4,6 @@
 
 PRIMARY_IFACE=enp2s0
 FAILOVER_IFACE=enp3s0
-WAN_BOND_IFACE=wanbond0
 PING_ADDRESS=8.8.8.8
 FAILOVER_CHECK_INTERVAL=300 # check failover connection every 5 minutes
 FAILOVER_FAILURE_THRESHOLD=3 # number of consecutive failures before logging a message
@@ -13,12 +12,17 @@ failedbounce=0
 # Get the default gateway from DHCP
 gateway=$(ip route | awk '/^default/ {print $3}')
 
+#debugging outputs
+echo "Primary interface: $PRIMARY_IFACE"
+echo "Failover interface: $FAILOVER_IFACE"
+echo "Gateway: $gateway"
+
 while true; do
     # Check primary interface for internet connectivity
     if ping -c 1 -I $PRIMARY_IFACE $PING_ADDRESS >/dev/null 2>&1; then
-        # Internet connection is up on primary interface, set the default route to the WAN bond interface
-        ip route replace default via $gateway dev $WAN_BOND_IFACE
-        logger -t internet-monitor "Switched to $WAN_BOND_IFACE: Internet connection is up on $PRIMARY_IFACE"
+        # Internet connection is up on primary interface, set the default route to the primary interface
+        ip route replace default via $gateway dev $PRIMARY_IFACE
+        logger -t internet-monitor "Switched to $PRIMARY_IFACE: Internet connection is up on $PRIMARY_IFACE"
         failedbounce=0
         sleep 60
         continue
@@ -34,9 +38,8 @@ while true; do
         continue
     fi
 
-    # Both interfaces are down, set the default route to the failover interface
-    ip route replace default via $gateway dev $FAILOVER_IFACE
-    logger -t internet-monitor "Switched to $FAILOVER_IFACE: Both $PRIMARY_IFACE and $FAILOVER_IFACE are down"
+    # Both interfaces are down
+    logger -t internet-monitor "Both $PRIMARY_IFACE and $FAILOVER_IFACE are down"
     failedbounce=0
     sleep 60
 
