@@ -1,0 +1,13 @@
+[Unit]
+Description=Internet Connection Monitor
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/internet-monitor/failover.sh
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
