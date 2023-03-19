@@ -37,21 +37,25 @@ fi
 
 while true; do
      # Check link status of primary interface
-    if $primary_connected; then
-        echo "Link is up on $PRIMARY_IFACE"
+    if ip link show $PRIMARY_IFACE | grep -q "state UP"; then
+        PRIMARY_GATEWAY=$(ip route get $PING_ADDRESS | awk 'NR==1{print $(NF-2)}')
+        primary_connected=true
+        echo "Primary interface: $PRIMARY_IFACE"
+        echo "Primary gateway: $PRIMARY_GATEWAY"
     else
-        echo "Link is down on $PRIMARY_IFACE"
-        sleep 10
-        continue
+        primary_connected=false
+        echo "Primary interface $PRIMARY_IFACE is not connected!"
     fi
 
     # Check link status of failover interface
-    if $failover_connected; then
-        echo "Link is up on $FAILOVER_IFACE"
+    if ip link show $FAILOVER_IFACE | grep -q "state UP"; then
+        FAILOVER_GATEWAY=$(ip route get $PING_ADDRESS | awk 'NR==2{print $(NF-2)}')
+        failover_connected=true
+        echo "Failover interface: $FAILOVER_IFACE"
+        echo "Failover gateway: $FAILOVER_GATEWAY"
     else
-        echo "Link is down on $FAILOVER_IFACE"
-        sleep 10
-        continue
+        failover_connected=false
+        echo "Failover interface $FAILOVER_IFACE is not connected!"
     fi
 
     # Check primary interface for internet connectivity
