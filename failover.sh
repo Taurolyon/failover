@@ -9,20 +9,23 @@ FAILOVER_CHECK_INTERVAL=300 # check failover connection every 5 minutes
 FAILOVER_FAILURE_THRESHOLD=3 # number of consecutive failures before logging a message
 failedbounce=0
 
-# Get the default gateway from DHCP
-gateway=$(ip route | awk '/^default/ {print $3}')
-
 #debugging outputs
+# Get the default gateway for the primary interface
+PRIMARY_GATEWAY=$(ip route get $PING_ADDRESS | awk 'NR==1{print $(NF-2)}')
 echo "Primary interface: $PRIMARY_IFACE"
+echo "Primary gateway: $PRIMARY_GATEWAY"
+
+# Get the default gateway for the failover interface
+FAILOVER_GATEWAY=$(ip route get $PING_ADDRESS | awk 'NR==2{print $(NF-2)}')
 echo "Failover interface: $FAILOVER_IFACE"
-echo "Gateway: $gateway"
+echo "Failover gateway: $FAILOVER_GATEWAY"
 
 while true; do
     # Check primary interface for internet connectivity
     echo "Checking internet connectivity on primary interface: $PRIMARY_IFACE"
     if ping -c 1 -I $PRIMARY_IFACE $PING_ADDRESS >/dev/null 2>&1; then
         # Internet connection is up on primary interface, set the default route to the primary interface
-        ip route replace default via $gateway dev $PRIMARY_IFACE
+        ip route replace default via $PRIMARY_GATEWAY dev $PRIMARY_IFACE
         logger -t internet-monitor "Switched to Primary: Internet connection is up on $PRIMARY_IFACE"
         echo "Switched to Primary: Internet connection is up on $PRIMARY_IFACE"
         failedbounce=0
@@ -33,7 +36,7 @@ while true; do
     # Check failover interface for internet connectivity
     if ping -c 1 -I $FAILOVER_IFACE $PING_ADDRESS >/dev/null 2>&1; then
         # Internet connection is up on failover interface, set the default route to the failover interface
-        ip route replace default via $gateway dev $FAILOVER_IFACE
+        ip route replace default via $FAILOVER_GATEWAY dev $FAILOVER_IFACE
         logger -t internet-monitor "Switched to Failover: Internet connection is up on $FAILOVER_IFACE"
         echo "Switched to Failover: Internet connection is up on $FAILOVER_IFACE"
         failedbounce=0
@@ -43,7 +46,7 @@ while true; do
 
     # Both interfaces are down
     logger -t internet-monitor "ERROR: Both $PRIMARY_IFACE and $FAILOVER_IFACE are down!!"
-    echo "ERROR: Both $PRIMARY_IFACE (primary) and $FAILOVER_IFACE (failover) are down!!"
+    echo "ERROR: Both $PRIMARY_IFACE and $FAILOVER_IFACE are down!!"
     failedbounce=0
     sleep 30
 
