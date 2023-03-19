@@ -37,7 +37,7 @@ fi
 
 while true; do
      # Check link status of primary interface
-    if $primary_connected then
+    if $primary_connected; then
         echo "Link is up on $PRIMARY_IFACE"
     else
         echo "Link is down on $PRIMARY_IFACE"
@@ -46,7 +46,7 @@ while true; do
     fi
 
     # Check link status of failover interface
-    if $failover_connected then
+    if $failover_connected; then
         echo "Link is up on $FAILOVER_IFACE"
     else
         echo "Link is down on $FAILOVER_IFACE"
