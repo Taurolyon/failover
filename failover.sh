@@ -11,19 +11,45 @@ failedbounce=0
 
 #debugging outputs
 # Get the default gateway for the primary interface
-PRIMARY_GATEWAY=$(ip route get $PING_ADDRESS | awk 'NR==1{print $(NF-2)}')
-echo "Primary interface: $PRIMARY_IFACE"
-echo "Primary gateway: $PRIMARY_GATEWAY"
+if ifplugstatus $PRIMARY_IFACE >/dev/null; then
+    PRIMARY_GATEWAY=$(ip route get $PING_ADDRESS | awk 'NR==1{print $(NF-2)}')
+    echo "Primary interface: $PRIMARY_IFACE"
+    echo "Primary gateway: $PRIMARY_GATEWAY"
+else
+    echo "Primary interface $PRIMARY_IFACE is not connected!"
+fi
 
 # Get the default gateway for the failover interface
-FAILOVER_GATEWAY=$(ip route get $PING_ADDRESS | awk 'NR==2{print $(NF-2)}')
-echo "Failover interface: $FAILOVER_IFACE"
-echo "Failover gateway: $FAILOVER_GATEWAY"
+if ifplugstatus $FAILOVER_IFACE >/dev/null; then
+    FAILOVER_GATEWAY=$(ip route get $PING_ADDRESS | awk 'NR==2{print $(NF-2)}')
+    echo "Failover interface: $FAILOVER_IFACE"
+    echo "Failover gateway: $FAILOVER_GATEWAY"
+else
+    echo "Failover interface $FAILOVER_IFACE is not connected!"
+fi
 
 while true; do
+     # Check link status of primary interface
+    if ifplugstatus $PRIMARY_IFACE | grep -q "link beat detected"; then
+        echo "Link is up on $PRIMARY_IFACE"
+    else
+        echo "Link is down on $PRIMARY_IFACE"
+        sleep 10
+        continue
+    fi
+
+    # Check link status of failover interface
+    if ifplugstatus $FAILOVER_IFACE | grep -q "link beat detected"; then
+        echo "Link is up on $FAILOVER_IFACE"
+    else
+        echo "Link is down on $FAILOVER_IFACE"
+        sleep 10
+        continue
+    fi
+
     # Check primary interface for internet connectivity
     echo "Checking internet connectivity on primary interface: $PRIMARY_IFACE"
-    if ping -c 1 -I $PRIMARY_IFACE $PING_ADDRESS >/dev/null 2>&1; then
+    if ifplugstatus $PRIMARY_IFACE >/dev/null && ping -c 1 -I $PRIMARY_IFACE $PING_ADDRESS >/dev/null 2>&1; then
         # Internet connection is up on primary interface, set the default route to the primary interface
         ip route replace default via $PRIMARY_GATEWAY dev $PRIMARY_IFACE
         logger -t internet-monitor "Switched to Primary: Internet connection is up on $PRIMARY_IFACE"
@@ -34,7 +60,7 @@ while true; do
     fi
 
     # Check failover interface for internet connectivity
-    if ping -c 1 -I $FAILOVER_IFACE $PING_ADDRESS >/dev/null 2>&1; then
+    if ifplugstatus $FAILOVER_IFACE >/dev/null && ping -c 1 -I $FAILOVER_IFACE $PING_ADDRESS >/dev/null 2>&1; then
         # Internet connection is up on failover interface, set the default route to the failover interface
         ip route replace default via $FAILOVER_GATEWAY dev $FAILOVER_IFACE
         logger -t internet-monitor "Switched to Failover: Internet connection is up on $FAILOVER_IFACE"
